@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>A3: Teen Mental Health Data Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #000080;
+            min-height: 100vh;
+            color: #333;
+        }
+
+        h2 {
+            text-align: center;
+            color: #fff;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-weight: 300;
+        }
+
+        .controls {
+            margin-bottom: 30px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls > div {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .controls label {
+            color: #fff;
+            font-weight: 500;
+            font-size: 1em;
+        }
+
+        .controls input[type="range"] {
+            width: 120px;
+            height: 6px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .controls input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #11998e;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .controls input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #11998e;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        .controls select {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            background: #fff;
+            color: #333;
+            font-size: 1em;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .controls select:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .controls button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            background: linear-gradient(45deg, #11998e, #38ef7d);
+            color: #fff;
+            font-size: 1em;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+
+        .controls button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .controls button:active {
+            transform: translateY(0);
+        }
+
+        #sliderVal {
+            color: #fff;
+            font-weight: bold;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            margin: 0 auto;
+            max-width: 1200px;
+        }
+
+        .dot {
+            stroke: #fff;
+            stroke-width: 1px;
+            opacity: 0.8;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .dot:hover {
+            stroke-width: 2px;
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        .dot.selected {
+            stroke: #333;
+            stroke-width: 3px;
+            opacity: 1;
+            transform: scale(1.3);
+        }
+
+        .tooltip {
+            position: absolute;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #11998e, #38ef7d);
+            color: #fff;
+            border-radius: 8px;
+            pointer-events: none;
+            opacity: 0;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .brush .selection {
+            fill: #11998e;
+            fill-opacity: 0.2;
+            stroke: #11998e;
+            stroke-width: 1px;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            h2 {
+                font-size: 2em;
+            }
+
+            .chart-container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Teen Mental Health Analysis Dashboard</h2>
+
+    <div class="controls">
+        <div>
+            <label>Filter Max Social Media Hours: </label>
+            <input type="range" id="filterSlider" min="0" max="10" step="0.5" value="10">
+            <span id="sliderVal">10</span>h
+        </div>
+
+        <div>
+            <label>Encode Color By: </label>
+            <select id="colorSelect">
+                <option value="gender">Gender</option>
+                <option value="platform_usage">Platform</option>
+            </select>
+        </div>
+
+        <button id="reconfigureBtn">Reconfigure: Sort by Academic</button>
+
+        <button id="abstractBtn">Toggle Abstract View</button>
+    </div>
+
+    <div class="chart-container">
+        <div id="main-chart"></div>
+        <div id="side-chart"></div>
+    </div>
+
+    <div id="tooltip" class="tooltip"></div>
+
+    <script>
+        // Load Dataset
+        d3.csv("cleaned_teen_mental_health.csv").then(rawData => {
+
+            // --- DATA PREPROCESSING IN D3 ---
+            const data = rawData.map(d => ({
+                age: +d.age,
+                gender: d.gender.trim(),
+                socialMedia: +d.daily_social_media_hours,
+                platform: d.platform_usage.trim(),
+                academic: +d.academic_performance,
+                stress: +d.stress_level,
+                anxiety: +d.anxiety_level
+            }));
+
+            const margin = { top: 20, right: 30, bottom: 40, left: 50 },
+                width = 600 - margin.left - margin.right,
+                height = 400 - margin.top - margin.bottom;
+
+            const svg = d3.select("#main-chart")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            // Scales
+            const x = d3.scaleLinear().domain([0, 10]).range([0, width]);
+            const y = d3.scaleLinear().domain([0, 10]).range([height, 0]);
+            const color = d3.scaleOrdinal(d3.schemeSet2);
+
+            // Axes
+            const xAxis = svg.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x));
+            svg.append("g").call(d3.axisLeft(y));
+
+            // Labels
+            svg.append("text").attr("x", width / 2).attr("y", height + 35).text("Social Media Hours");
+            svg.append("text").attr("transform", "rotate(-90)").attr("y", -35).attr("x", -height / 2).text("Stress Level");
+
+            // --- IMPLEMENTING INTERACTIONS ---
+
+            // Draw Initial Points (ENCODE [cite: 7] & ELABORATE [cite: 10])
+            const dots = svg.selectAll(".dot")
+                .data(data)
+                .enter().append("circle")
+                .attr("class", "dot")
+                .attr("cx", d => x(d.socialMedia))
+                .attr("cy", d => y(d.stress))
+                .attr("r", 4)
+                .attr("fill", d => color(d.gender))
+                .on("mouseover", (event, d) => { // ELABORATE
+                    d3.select("#tooltip")
+                        .style("opacity", 1)
+                        .html(`<b>Academic:</b> ${d.academic}<br><b>Anxiety:</b> ${d.anxiety}`)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 10) + "px");
+                })
+                .on("mouseleave", () => d3.select("#tooltip").style("opacity", 0))
+                .on("click", function () { // SELECT [cite: 4]
+                    d3.selectAll(".dot").classed("selected", false);
+                    d3.select(this).classed("selected", true);
+                });
+
+            // FILTER: Interaction [cite: 5]
+            d3.select("#filterSlider").on("input", function () {
+                const val = +this.value;
+                d3.select("#sliderVal").text(val);
+                dots.style("opacity", d => d.socialMedia <= val ? 0.7 : 0);
+            });
+
+            // ENCODE: Dynamic Color change [cite: 7]
+            d3.select("#colorSelect").on("change", function () {
+                const choice = this.value;
+                dots.transition().duration(500).attr("fill", d => color(d[choice]));
+            });
+
+            // RECONFIGURE: Toggle X-Axis Scale [cite: 9]
+            let toggled = false;
+            d3.select("#reconfigureBtn").on("click", () => {
+                toggled = !toggled;
+                const newScale = toggled ? d3.scaleLinear().domain([0, 4]).range([0, width]) : x;
+                xAxis.transition().duration(1000).call(d3.axisBottom(newScale));
+                dots.transition().duration(1000).attr("cx", d => newScale(toggled ? d.academic : d.socialMedia));
+            });
+
+            // CONNECT: Brushing [cite: 8]
+            const brush = d3.brush()
+                .extent([[0, 0], [width, height]])
+                .on("start brush", (event) => {
+                    const selection = event.selection;
+                    if (selection) {
+                        const [[x0, y0], [x1, y1]] = selection;
+                        dots.classed("selected", d =>
+                            x(d.socialMedia) >= x0 && x(d.socialMedia) <= x1 &&
+                            y(d.stress) >= y0 && y(d.stress) <= y1
+                        );
+                    }
+                });
+            svg.append("g").attr("class", "brush").call(brush);
+
+            // ABSTRACT: Summary View [cite: 11]
+            let isAbstract = false;
+            d3.select("#abstractBtn").on("click", () => {
+                isAbstract = !isAbstract;
+                dots.transition().duration(500).attr("r", isAbstract ? 15 : 4).style("opacity", isAbstract ? 0.2 : 0.7);
+            });
+        });
+    </script>
+</body>
+
+</html>
